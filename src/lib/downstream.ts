@@ -182,9 +182,23 @@ export async function searchFromApi(
   try {
     const apiBaseUrl = apiSite.api;
 
-    // 自动兼容判断：如果是纯解析线路（非CMS采集站，如含 ?url=），直接安全返回空结果，避免拖慢全局搜片并发
+    // 自动兼容判断：纯解析线路不走 CMS 采集请求（零延迟），安全返回解析专线条目供播放页挂载展示与播放
     if (apiBaseUrl.includes('?url=') || apiBaseUrl.includes('&url=')) {
-      return [];
+      const safeId = Buffer.from(apiBaseUrl).toString('base64').replace(/[^a-zA-Z0-9]/g, '').slice(0, 16);
+      return [
+        {
+          id: `parse_${safeId}`,
+          title: query,
+          poster: '',
+          episodes: [apiBaseUrl],
+          episodes_titles: ['全集/免广告解析'],
+          source: apiSite.key,
+          source_name: apiSite.name,
+          year: '',
+          desc: `${apiSite.name} VIP免广告解析专线`,
+          type_name: '解析专线',
+        },
+      ];
     }
 
     // 智能搜索：使用预计算的变体（最多2个，由 generateSearchVariants 智能生成）
@@ -515,6 +529,22 @@ export async function getDetailFromApi(
   apiSite: ApiSite,
   id: string
 ): Promise<SearchResult> {
+  const apiBaseUrl = apiSite.api || '';
+  if (apiBaseUrl.includes('?url=') || apiBaseUrl.includes('&url=')) {
+    return {
+      id,
+      title: apiSite.name,
+      poster: '',
+      episodes: [apiBaseUrl],
+      episodes_titles: ['全集/免广告解析'],
+      source: apiSite.key,
+      source_name: apiSite.name,
+      year: '',
+      desc: `${apiSite.name} VIP免广告解析专线`,
+      type_name: '解析专线',
+    };
+  }
+
   if (apiSite.detail) {
     return handleSpecialSourceDetail(id, apiSite);
   }
