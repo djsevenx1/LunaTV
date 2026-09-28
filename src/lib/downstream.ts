@@ -182,6 +182,11 @@ export async function searchFromApi(
   try {
     const apiBaseUrl = apiSite.api;
 
+    // 自动兼容判断：如果是纯解析线路（非CMS采集站，如含 ?url=），直接安全返回空结果，避免拖慢全局搜片并发
+    if (apiBaseUrl.includes('?url=') || apiBaseUrl.includes('&url=')) {
+      return [];
+    }
+
     // 智能搜索：使用预计算的变体（最多2个，由 generateSearchVariants 智能生成）
     const searchVariants = precomputedVariants || generateSearchVariants(query);
 
@@ -190,7 +195,10 @@ export async function searchFromApi(
 
     // 🚀 并行搜索所有变体（关键优化：不再串行等待）
     const variantPromises = searchVariants.map(async (variant, index) => {
-      const apiUrl = apiBaseUrl + API_CONFIG.search.path + encodeURIComponent(variant);
+      const searchPath = API_CONFIG.search.path;
+      const connector = apiBaseUrl.includes('?') ? (apiBaseUrl.endsWith('?') ? '' : '&') : '';
+      const cleanSearchPath = connector ? searchPath.replace(/^\?/, connector) : searchPath;
+      const apiUrl = apiBaseUrl + cleanSearchPath + encodeURIComponent(variant);
       console.log(`[DEBUG] 并行搜索变体 ${index + 1}/${searchVariants.length}: "${variant}"`);
 
       try {
@@ -258,11 +266,12 @@ export async function searchFromApi(
       const additionalPagePromises = [];
 
       for (let page = 2; page <= pagesToFetch + 1; page++) {
-        const pageUrl =
-          apiBaseUrl +
-          API_CONFIG.search.pagePath
-            .replace('{query}', encodeURIComponent(query))
-            .replace('{page}', page.toString());
+        const pagePath = API_CONFIG.search.pagePath
+          .replace('{query}', encodeURIComponent(query))
+          .replace('{page}', page.toString());
+        const connector = apiBaseUrl.includes('?') ? (apiBaseUrl.endsWith('?') ? '' : '&') : '';
+        const cleanPagePath = connector ? pagePath.replace(/^\?/, connector) : pagePath;
+        const pageUrl = apiBaseUrl + cleanPagePath;
 
         const pagePromise = (async () => {
           // 使用新的缓存搜索函数处理分页

@@ -11,48 +11,88 @@ interface Parser {
   status: 'active' | 'inactive' | 'unknown'; // 接口状态
 }
 
-// 视频解析接口列表（经过可用性测试，2025年1月更新）
+// 视频解析接口列表（扩充柚子TV与咕噜1号专线优质解析线路）
 const PARSERS: Parser[] = [
+  {
+    name: '咕噜1号官方专线',
+    url: 'https://1ljx.com/api.php?url=',
+    platforms: ['qq', 'iqiyi', 'youku', 'mgtv', 'bilibili', 'pptv', 'sohu', 'letv'],
+    priority: 1,
+    timeout: 10000,
+    status: 'active',
+  },
+  {
+    name: 'UC影音加速专线',
+    url: 'http://ucyy.cn/?url=',
+    platforms: ['qq', 'iqiyi', 'youku', 'mgtv', 'bilibili', 'pptv', 'sohu', 'letv'],
+    priority: 2,
+    timeout: 10000,
+    status: 'active',
+  },
+  {
+    name: '星空/虾米解析',
+    url: 'https://jx.xmflv.com/?url=',
+    platforms: ['qq', 'iqiyi', 'youku', 'mgtv', 'bilibili'],
+    priority: 3,
+    timeout: 15000,
+    status: 'active',
+  },
   {
     name: 'M3U8.TV解析',
     url: 'https://jx.m3u8.tv/jiexi/?url=',
     platforms: ['qq', 'iqiyi', 'youku', 'mgtv', 'bilibili', 'pptv'],
-    priority: 1,
-    timeout: 15000,
-    status: 'active' // ✅ 测试可用，支持多平台
-  },
-  {
-    name: '星空解析',
-    url: 'https://jx.xmflv.com/?url=',
-    platforms: ['qq', 'iqiyi', 'youku', 'mgtv', 'bilibili'],
-    priority: 2,
-    timeout: 15000,
-    status: 'active' // ✅ 测试可用，HLS解析
-  },
-  {
-    name: '播放家解析',
-    url: 'https://jx.playerjy.com/?url=',
-    platforms: ['qq', 'iqiyi', 'youku', 'sohu', 'letv'],
-    priority: 3,
-    timeout: 15000,
-    status: 'active' // ✅ 测试可用，支持老平台
-  },
-  {
-    name: '爱豆解析',
-    url: 'https://jx.aidouer.net/?url=',
-    platforms: ['qq', 'iqiyi', 'youku', 'bilibili', 'mgtv'],
     priority: 4,
     timeout: 15000,
-    status: 'active' // ✅ 重定向到77flv，可用
+    status: 'active',
+  },
+  {
+    name: '云解解析',
+    url: 'https://yparse.ik9.cc/index.php?url=',
+    platforms: ['qq', 'iqiyi', 'youku', 'mgtv', 'bilibili', 'sohu'],
+    priority: 5,
+    timeout: 15000,
+    status: 'active',
+  },
+  {
+    name: '咸鱼解析',
+    url: 'https://jx.xymp4.cc/?url=',
+    platforms: ['qq', 'iqiyi', 'youku', 'mgtv', 'bilibili'],
+    priority: 6,
+    timeout: 15000,
+    status: 'active',
+  },
+  {
+    name: '淘片解析',
+    url: 'https://jx.yparse.com/index.php?url=',
+    platforms: ['qq', 'iqiyi', 'youku', 'mgtv', 'bilibili'],
+    priority: 7,
+    timeout: 15000,
+    status: 'active',
   },
   {
     name: '77FLV解析',
     url: 'https://jx.77flv.cc/?url=',
     platforms: ['qq', 'iqiyi', 'youku', 'mgtv', 'bilibili'],
-    priority: 5,
+    priority: 8,
     timeout: 15000,
-    status: 'active' // ✅ 多个接口都重定向到这里，应该是可用的
-  }
+    status: 'active',
+  },
+  {
+    name: '播放家解析',
+    url: 'https://jx.playerjy.com/?url=',
+    platforms: ['qq', 'iqiyi', 'youku', 'sohu', 'letv'],
+    priority: 9,
+    timeout: 15000,
+    status: 'active',
+  },
+  {
+    name: '盘古解析',
+    url: 'https://www.playm3u8.cn/jiexi.php?url=',
+    platforms: ['qq', 'iqiyi', 'youku', 'mgtv'],
+    priority: 10,
+    timeout: 15000,
+    status: 'active',
+  },
 ];
 
 // 根据URL识别视频平台

@@ -39,15 +39,43 @@ export async function POST(request: NextRequest) {
 
     const configContent = await response.text();
 
-    // 对 configContent 进行 base58 解码
-    let decodedContent;
+    const trimmedContent = configContent.trim();
+    let decodedContent = '';
+
+    // 1. 如果本身已经是合法的 JSON 字符串，直接使用
+    let isDirectJson = false;
     try {
-      const bs58 = (await import('bs58')).default;
-      const decodedBytes = bs58.decode(configContent);
-      decodedContent = new TextDecoder().decode(decodedBytes);
-    } catch (decodeError) {
-      console.warn('Base58 解码失败', decodeError);
-      throw decodeError;
+      JSON.parse(trimmedContent);
+      isDirectJson = true;
+      decodedContent = trimmedContent;
+    } catch {
+      isDirectJson = false;
+    }
+
+    // 2. 若非直接 JSON，尝试 Base58 解码（兼容 LunaTV 原生 Base58 订阅格式）
+    if (!isDirectJson) {
+      try {
+        const bs58 = (await import('bs58')).default;
+        const decodedBytes = bs58.decode(trimmedContent);
+        const candidate = new TextDecoder().decode(decodedBytes);
+        JSON.parse(candidate);
+        decodedContent = candidate;
+      } catch (decodeError) {
+        // 3. 若 Base58 失败，尝试 Base64 解码兜底
+        try {
+          const base64Candidate = Buffer.from(trimmedContent, 'base64').toString('utf8');
+          JSON.parse(base64Candidate);
+          decodedContent = base64Candidate;
+        } catch {
+          // 4. 若无法解码为有效 JSON，若原始文本包含大括号则尝试原样传递由配置校验器处理
+          if (trimmedContent.startsWith('{') && trimmedContent.endsWith('}')) {
+            decodedContent = trimmedContent;
+          } else {
+            console.warn('订阅内容解码失败，非有效 JSON / Base58 / Base64', decodeError);
+            throw new Error('订阅内容格式不支持，请确保为标准 JSON 或 Base58 订阅文本');
+          }
+        }
+      }
     }
 
     return NextResponse.json({
