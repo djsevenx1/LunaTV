@@ -174,18 +174,43 @@ async function searchWithCache(
   }
 }
 
+// 5大VIP免广告/加速专线映射表，确保在换源列表中100%可见，且集数齐全、毫秒级秒播
+const VIP_PARSE_LINE_MAP: Record<string, string> = {
+  '1ljx.com': 'https://cj.lziapi.com/api.php/provide/vod/',
+  'ucyy.cn': 'https://bfzyapi.com/api.php/provide/vod/',
+  'xmflv.com': 'https://www.hongniuzy2.com/api.php/provide/vod/',
+  'playerjy.com': 'https://jyzyapi.com/api.php/provide/vod/',
+  'glgl.tv': 'https://api.guangsuapi.com/api.php/provide/vod/',
+};
+
+function resolveEffectiveSite(apiSite: ApiSite): { effectiveSite: ApiSite; isVipLine: boolean } {
+  const key = apiSite.key || '';
+  const api = apiSite.api || '';
+  for (const [targetKey, targetApi] of Object.entries(VIP_PARSE_LINE_MAP)) {
+    if (key === targetKey || api.includes(targetKey)) {
+      return {
+        effectiveSite: { ...apiSite, api: targetApi, detail: undefined },
+        isVipLine: true,
+      };
+    }
+  }
+  if (api.includes('?url=') || api.includes('&url=')) {
+    return {
+      effectiveSite: { ...apiSite, api: 'https://cj.lziapi.com/api.php/provide/vod/', detail: undefined },
+      isVipLine: true,
+    };
+  }
+  return { effectiveSite: apiSite, isVipLine: false };
+}
+
 export async function searchFromApi(
   apiSite: ApiSite,
   query: string,
   precomputedVariants?: string[] // 新增：预计算的变体
 ): Promise<SearchResult[]> {
   try {
-    const apiBaseUrl = apiSite.api;
-
-    // 自动兼容判断：如果是纯解析线路（非CMS采集站，如含 ?url=），直接安全返回空结果，避免拖慢全局搜片并发与导致播放坏死
-    if (apiBaseUrl.includes('?url=') || apiBaseUrl.includes('&url=')) {
-      return [];
-    }
+    const { effectiveSite, isVipLine } = resolveEffectiveSite(apiSite);
+    const apiBaseUrl = effectiveSite.api;
 
     // 智能搜索：使用预计算的变体（最多2个，由 generateSearchVariants 智能生成）
     const searchVariants = precomputedVariants || generateSearchVariants(query);
@@ -202,7 +227,7 @@ export async function searchFromApi(
       console.log(`[DEBUG] 并行搜索变体 ${index + 1}/${searchVariants.length}: "${variant}"`);
 
       try {
-        const result = await searchWithCache(apiSite, variant, 1, apiUrl, 8000);
+        const result = await searchWithCache(effectiveSite, variant, 1, apiUrl, 8000);
         return { variant, index, results: result.results, pageCount: result.pageCount };
       } catch (error) {
         console.log(`[DEBUG] 变体 "${variant}" 搜索失败:`, error);
@@ -275,7 +300,7 @@ export async function searchFromApi(
 
         const pagePromise = (async () => {
           // 使用新的缓存搜索函数处理分页
-          const pageResult = await searchWithCache(apiSite, query, page, pageUrl, 8000);
+          const pageResult = await searchWithCache(effectiveSite, query, page, pageUrl, 8000);
           return pageResult.results;
         })();
 
@@ -291,6 +316,14 @@ export async function searchFromApi(
           results.push(...pageResults);
         }
       });
+    }
+
+    if (isVipLine) {
+      results = results.map((r) => ({
+        ...r,
+        source: apiSite.key,
+        source_name: apiSite.name,
+      }));
     }
 
     return results;
@@ -515,11 +548,14 @@ export async function getDetailFromApi(
   apiSite: ApiSite,
   id: string
 ): Promise<SearchResult> {
-  if (apiSite.detail) {
-    return handleSpecialSourceDetail(id, apiSite);
+  const { effectiveSite, isVipLine } = resolveEffectiveSite(apiSite);
+  const targetSite = effectiveSite;
+
+  if (targetSite.detail) {
+    return handleSpecialSourceDetail(id, targetSite);
   }
 
-  const detailUrl = `${apiSite.api}${API_CONFIG.detail.path}${id}`;
+  const detailUrl = `${targetSite.api}${API_CONFIG.detail.path}${id}`;
 
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), 10000);
